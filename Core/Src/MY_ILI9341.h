@@ -102,6 +102,11 @@ Description:			This is an STM32 device driver library for the ILI9341 SPI LCD di
 #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 #define min(a,b) (((a)<(b))?(a):(b))
 
+//UGR Screen variables
+#define ILI_STREAMBUF_SIZE	2048
+uint32_t ILI9341StreamBufIndex;
+uint8_t ILI9341StreamBuf[ILI_STREAMBUF_SIZE];
+
 //***** Functions prototypes *****//
 //1. Write Command to LCD
 void ILI9341_SendCommand(uint8_t com);

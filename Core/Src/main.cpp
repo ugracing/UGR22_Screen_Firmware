@@ -219,6 +219,7 @@ void UGR_Draw_string_font(int startx, int starty, char *str, GFXfont font) {
 		int offset = str[i] - font.first;
 		GFXglyph * cInfo = &(font.glyph[offset]);
 		uint8_t *fontChar = &(font.bitmap[cInfo->bitmapOffset]);
+		uint16_t fontColour = COLOR_ORANGE;
 
 		//calculate width to nearest byte
 		int width = cInfo->width/ 8;
@@ -236,12 +237,21 @@ void UGR_Draw_string_font(int startx, int starty, char *str, GFXfont font) {
 	    int16_t xo16 = 0, yo16 = 0;
 
 //	    if (size_x > 1 || size_y > 1) {
-	      xo16 = xo;
-	      yo16 = yo;
+		xo16 = xo;
+		yo16 = yo;
 //	    }
 
 		//Write the character
 //		write_GFXfont_char(startx, starty, width, cInfo->height, fontChar, 255, 128, 0);
+
+
+		//init DMA buffer
+		ILI9341StreamBufIndex = 0;
+		while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
+			//TODO find better way or checking, also timeout code?
+		}
+		ILI9341_SetCursorPosition(startx, starty, startx + w -1, starty + h - 1);
+		HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
 
 
 	    for (yy = 0; yy < h; yy++) {
@@ -250,19 +260,64 @@ void UGR_Draw_string_font(int startx, int starty, char *str, GFXfont font) {
 	          bits = (font.bitmap[bo++]);
 	        }
 	        if (bits & 0x80) {
-//	          if (size_x == 1 && size_y == 1) {
-//	            writePixel(x + xo + xx, y + yo + yy, color);
-	        	  ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_ORANGE);
-//	          } else {
-//	            writeFillRect(x + (xo16 + xx) * size_x, y + (yo16 + yy) * size_y,
-//	                          size_x, size_y, color);
-//	          }
+	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = fontColour>>8;
+	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = fontColour;
 	        } else {
-	        	ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_BLACK);
+	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = COLOR_BLACK>>8;
+	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = COLOR_BLACK;
 	        }
+
+
 	        bits <<= 1;
+
+
+	        //check buffer fullness
+	        if(ILI9341StreamBufIndex == ILI_STREAMBUF_SIZE/2){
+	        	//check if DMA in progress, if so, wait for completion
+	        	while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
+	        		//TODO find better way or checking, also timeout code?
+	        	}
+	        	//Otherwise, start DMA transfer
+	        	HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf, ILI_STREAMBUF_SIZE/2);
+	        } else if(ILI9341StreamBufIndex == ILI_STREAMBUF_SIZE){
+	        	//check if DMA in progress, if so, wait for completion
+	        	while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
+	        		//TODO find better way or checking, also timeout code?
+	        	}
+	        	//Otherwise, start DMA transfer
+	        	HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf + ILI_STREAMBUF_SIZE/2, ILI_STREAMBUF_SIZE/2);
+	        	ILI9341StreamBufIndex = 0;
+	        }
 	      }
 	    }
+		//Check if anything is left in the buffer after pixel generation
+		if(ILI9341StreamBufIndex > 0){
+			//check if DMA in progress, if so, wait for completion
+			while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
+				//TODO find better way or checking, also timeout code?
+			}
+			//Otherwise, start DMA transfer
+			if(ILI9341StreamBufIndex > ILI_STREAMBUF_SIZE/2){
+				HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf + ILI_STREAMBUF_SIZE/2, ILI9341StreamBufIndex - ILI_STREAMBUF_SIZE/2);
+			} else {
+				HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf, ILI9341StreamBufIndex);
+			}
+		}
+
+
+//	    for (yy = 0; yy < h; yy++) {
+//	      for (xx = 0; xx < w; xx++) {
+//	        if (!(bit++ & 7)) {
+//	          bits = (font.bitmap[bo++]);
+//	        }
+//	        if (bits & 0x80) {
+//	        	ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_ORANGE);
+//	        } else {
+//	        	ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_BLACK);
+//	        }
+//	        bits <<= 1;
+//	      }
+//	    }
 		startx += cInfo->xAdvance;
 
 	}
@@ -364,9 +419,15 @@ int main(void)
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
   HAL_SPI_Transmit_DMA(&hspi3, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
 
-  HAL_Delay(1);
+  while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY);
 
-  ILI9341_drawLine(80, 0, 80, 239, COLOR_ORANGE);
+  ILI9341_SetCursorPosition(ILI9341_HEIGHT - meme.width, ILI9341_WIDTH - meme.height, ILI9341_HEIGHT - 1,  ILI9341_WIDTH - 1);
+  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
+  HAL_SPI_Transmit_DMA(&hspi3, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+
+  HAL_Delay(1);
+  while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY);
+//  ILI9341_drawLine(80, 0, 80, 239, COLOR_ORANGE);
   UGR_Draw_string_font(10, 50, "MPH", FreeSans10pt7b);
   UGR_Draw_string_font(130, 20, "Gear", FreeSans10pt7b);
 
