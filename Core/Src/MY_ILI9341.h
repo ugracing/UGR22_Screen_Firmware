@@ -13,6 +13,14 @@ Description:			This is an STM32 device driver library for the ILI9341 SPI LCD di
    or indirectly by this software, read more about this on the GNU General Public License.
 */
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef SRC_MY_ILI9341_H_
+#define SRC_MY_ILI9341_H_
+
 //List of includes
 #include <stdbool.h>
 //** CHANGE BASED ON STM32 CHIP F4/F7/F1...**//
@@ -102,10 +110,7 @@ Description:			This is an STM32 device driver library for the ILI9341 SPI LCD di
 #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 #define min(a,b) (((a)<(b))?(a):(b))
 
-//UGR Screen variables
-#define ILI_STREAMBUF_SIZE	2048
-uint32_t ILI9341StreamBufIndex;
-uint8_t ILI9341StreamBuf[ILI_STREAMBUF_SIZE];
+
 
 //***** Functions prototypes *****//
 //1. Write Command to LCD
@@ -148,3 +153,9 @@ void ILI9341_printImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t 
 void ILI9341_setRotation(uint8_t rotate);
 //14. Get screen rotation
 uint8_t ILI9341_getRotation(void);
+
+#endif /* SRC_MY_ILI9341_H_ */
+
+#ifdef __cplusplus
+}
+#endif

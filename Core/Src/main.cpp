@@ -23,10 +23,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-extern "C" {
-#include "MY_ILI9341.h"
-}
+//extern "C" {
+//#include "MY_ILI9341.h"
+//}
 #include "S25FL.h"
+#include "UGRScreen.h"
+#include "UGRScreenField.h"
 #include "Vladimir24pt.h"
 #include "FreeSans20pt7b.h"
 #include "FreeSans10pt7b.h"
@@ -179,150 +181,6 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 	col_ready++;
 }
 
-void UGR_Draw_string_font(int startx, int starty, char *str, FONT_INFO font) {
-	for (int i = 0; i < strlen(str); i++) {
-		//Deal with spaces
-		if (str[i] == ' ') {
-			startx += font.spaceWidth;
-			continue;
-		}
-
-		//get font bitmap pointer
-		int offset = str[i] - font.startChar;
-		FONT_CHAR_INFO cInfo = font.cInfo[offset];
-		uint8_t *fontChar = &(font.bitmap[cInfo.offset]);
-
-		//calculate width to nearest byte
-		int width = cInfo.bitWidth / 8;
-		if (cInfo.bitWidth - width * 8 > 0) {
-			width += 1;
-		}
-		width = width * 8;
-
-		//Write the character
-		write_font_char(startx, starty, width, cInfo.bitHeight, fontChar, 255, 128,
-				0);
-		startx += cInfo.bitWidth;
-
-	}
-}
-
-void UGR_Draw_string_font(int startx, int starty, char *str, GFXfont font) {
-	for (int i = 0; i < strlen(str); i++) {
-		//Deal with spaces
-//		if (str[i] == ' ') {
-//			startx += font.glyph->xAdvance;
-//			continue;
-//		}
-
-		//get font bitmap pointer
-		int offset = str[i] - font.first;
-		GFXglyph * cInfo = &(font.glyph[offset]);
-		uint8_t *fontChar = &(font.bitmap[cInfo->bitmapOffset]);
-		uint16_t fontColour = COLOR_ORANGE;
-
-		//calculate width to nearest byte
-		int width = cInfo->width/ 8;
-		if (cInfo->width - width * 8 > 0) {
-			width += 1;
-		}
-		width = width * 8;
-
-
-	    uint16_t bo = (cInfo->bitmapOffset);
-	    uint8_t w = (cInfo->width), h = (cInfo->height);
-	    int8_t xo = (cInfo->xOffset),
-	           yo = (cInfo->yOffset);
-	    uint8_t xx, yy, bits = 0, bit = 0;
-	    int16_t xo16 = 0, yo16 = 0;
-
-//	    if (size_x > 1 || size_y > 1) {
-		xo16 = xo;
-		yo16 = yo;
-//	    }
-
-		//Write the character
-//		write_GFXfont_char(startx, starty, width, cInfo->height, fontChar, 255, 128, 0);
-
-
-		//init DMA buffer
-		ILI9341StreamBufIndex = 0;
-		while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
-			//TODO find better way or checking, also timeout code?
-		}
-		ILI9341_SetCursorPosition(startx, starty, startx + w -1, starty + h - 1);
-		HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-
-
-	    for (yy = 0; yy < h; yy++) {
-	      for (xx = 0; xx < w; xx++) {
-	        if (!(bit++ & 7)) {
-	          bits = (font.bitmap[bo++]);
-	        }
-	        if (bits & 0x80) {
-	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = fontColour>>8;
-	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = fontColour;
-	        } else {
-	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = COLOR_BLACK>>8;
-	        	ILI9341StreamBuf[ILI9341StreamBufIndex++] = COLOR_BLACK;
-	        }
-
-
-	        bits <<= 1;
-
-
-	        //check buffer fullness
-	        if(ILI9341StreamBufIndex == ILI_STREAMBUF_SIZE/2){
-	        	//check if DMA in progress, if so, wait for completion
-	        	while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
-	        		//TODO find better way or checking, also timeout code?
-	        	}
-	        	//Otherwise, start DMA transfer
-	        	HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf, ILI_STREAMBUF_SIZE/2);
-	        } else if(ILI9341StreamBufIndex == ILI_STREAMBUF_SIZE){
-	        	//check if DMA in progress, if so, wait for completion
-	        	while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
-	        		//TODO find better way or checking, also timeout code?
-	        	}
-	        	//Otherwise, start DMA transfer
-	        	HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf + ILI_STREAMBUF_SIZE/2, ILI_STREAMBUF_SIZE/2);
-	        	ILI9341StreamBufIndex = 0;
-	        }
-	      }
-	    }
-		//Check if anything is left in the buffer after pixel generation
-		if(ILI9341StreamBufIndex > 0){
-			//check if DMA in progress, if so, wait for completion
-			while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY){
-				//TODO find better way or checking, also timeout code?
-			}
-			//Otherwise, start DMA transfer
-			if(ILI9341StreamBufIndex > ILI_STREAMBUF_SIZE/2){
-				HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf + ILI_STREAMBUF_SIZE/2, ILI9341StreamBufIndex - ILI_STREAMBUF_SIZE/2);
-			} else {
-				HAL_SPI_Transmit_DMA(&hspi3, ILI9341StreamBuf, ILI9341StreamBufIndex);
-			}
-		}
-
-
-//	    for (yy = 0; yy < h; yy++) {
-//	      for (xx = 0; xx < w; xx++) {
-//	        if (!(bit++ & 7)) {
-//	          bits = (font.bitmap[bo++]);
-//	        }
-//	        if (bits & 0x80) {
-//	        	ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_ORANGE);
-//	        } else {
-//	        	ILI9341_DrawPixel(startx + xo + xx, starty + yo + yy, COLOR_BLACK);
-//	        }
-//	        bits <<= 1;
-//	      }
-//	    }
-		startx += cInfo->xAdvance;
-
-	}
-}
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -383,8 +241,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //Init LCD
-  ILI9341_Init(&hspi3, LCD_CS_GPIO_Port, LCD_CS_Pin, LCD_DC_GPIO_Port, LCD_DC_Pin, LCD_RST_GPIO_Port, LCD_RST_Pin);
-  ILI9341_setRotation(4);
+  UGR_Screen screen = UGR_Screen(&hspi3, LCD_CS_GPIO_Port, LCD_CS_Pin, LCD_DC_GPIO_Port, LCD_DC_Pin, LCD_RST_GPIO_Port, LCD_RST_Pin);
 
   //Init Flash
   flash = S25FL(&hspi1, FLASH_CS_GPIO_Port, FLASH_CS_Pin);
@@ -427,9 +284,11 @@ int main(void)
 
   HAL_Delay(1);
   while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY);
-//  ILI9341_drawLine(80, 0, 80, 239, COLOR_ORANGE);
-  UGR_Draw_string_font(10, 50, "MPH", FreeSans10pt7b);
-  UGR_Draw_string_font(130, 20, "Gear", FreeSans10pt7b);
+
+  UGR_ScreenField mphTitleField = UGR_ScreenField(10, 50, "MPH", FreeSans10pt7b, &screen);
+  UGR_ScreenField gearTitleField = UGR_ScreenField(130, 20, "Gear", FreeSans10pt7b, &screen);
+  UGR_ScreenField mphField = UGR_ScreenField(10, 100, "", FreeSans20pt7b, &screen);
+  UGR_ScreenField gearField = UGR_ScreenField(130, 100, "", FreeSans35pt7b, &screen);
 
   int can_mph = 0;
   int can_gear = 0;
@@ -441,8 +300,8 @@ int main(void)
 	  sprintf(mph_str, "%d", can_mph);
 	  sprintf(gear_str, "%d", can_gear);
 
-	  UGR_Draw_string_font(10, 100, mph_str, FreeSans20pt7b);
-	  UGR_Draw_string_font(130, 100, gear_str, FreeSans35pt7b);
+	  mphField.update(mph_str);
+	  gearField.update(gear_str);
 
 	  if(can_mph++ > 99) can_mph =0;
 	  if(can_gear++ > 6) can_gear =0;
