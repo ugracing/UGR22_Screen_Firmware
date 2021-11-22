@@ -31,6 +31,7 @@ public:
 	uint16_t colour;
 	uint16_t lastWidth;
 	uint16_t lastHeight;
+	char *currentString;
 
 	UGR_Screen *screen;
 };

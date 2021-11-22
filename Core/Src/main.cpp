@@ -303,8 +303,8 @@ int main(void)
 	  mphField.update(mph_str);
 	  gearField.update(gear_str);
 
-	  if(can_mph++ > 99) can_mph =0;
-	  if(can_gear++ > 6) can_gear =0;
+	  if(++can_mph > 99) can_mph =0;
+	  if(++can_gear > 6) can_gear =0;
 
     /* USER CODE END WHILE */
 

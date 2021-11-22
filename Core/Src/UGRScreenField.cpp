@@ -12,12 +12,13 @@ UGR_ScreenField::UGR_ScreenField(int startx, int starty, char *str, GFXfont font
 	this->starty = starty;
 	this->font	= font;
 	this->screen = screen;
+	this->currentString = (char*)malloc(33); //TODO allow different sizes
 
 	this->update(str);
 }
 
 UGR_ScreenField::~UGR_ScreenField() {
-	// TODO Auto-generated destructor stub
+	free(this->currentString);
 }
 
 void UGR_ScreenField::update(char *str) {
@@ -41,7 +42,7 @@ void UGR_ScreenField::update(char *str) {
 
 
 		    uint16_t bo = (cInfo->bitmapOffset);
-		    uint8_t w = (cInfo->width), h = (cInfo->height);
+		    uint8_t w = (cInfo->width), h = (cInfo->height), ad = cInfo->xAdvance;
 		    int8_t xo = (cInfo->xOffset),
 		           yo = (cInfo->yOffset);
 		    uint8_t xx, yy, bits = 0, bit = 0;
@@ -110,10 +111,48 @@ void UGR_ScreenField::update(char *str) {
 				}
 			}
 
-			localStartX += cInfo->xAdvance;
+			const char* teststr = "10";
+			if(strcmp(str, teststr) == 0){
+				while(HAL_SPI_GetState(this->screen->spiHandle) != HAL_SPI_STATE_READY){
+									//TODO find better way or checking, also timeout code?
+								}
+			}
+
+		//compare max dimensions, blanking extra space from prev. string
+			if(i < strlen(this->currentString)){
+				offset = this->currentString[i] - font.first;
+				cInfo = &(font.glyph[offset]);
+				//if there isnt full overlap on the right, blank it out
+				if(cInfo->width > w){
+					//TODO dont use slow function for this
+					while(HAL_SPI_GetState(this->screen->spiHandle) != HAL_SPI_STATE_READY){
+						//TODO find better way or checking, also timeout code?
+					}
+					if(cInfo->height > h){
+						ILI9341_Fill_Rect(localStartX + w , localStartY, localStartX + cInfo->width -1, localStartY + cInfo->height -1, COLOR_BLACK);
+					} else {
+						ILI9341_Fill_Rect(localStartX + w , localStartY, localStartX + cInfo->width -1, localStartY + h -1, COLOR_BLACK);
+					}
+				}
+				//if there isnt full overlap on the bottom (and a little bit on the corner)l blank it out
+				if(cInfo->height > h){
+					//TODO dont use slow function for this
+					while(HAL_SPI_GetState(this->screen->spiHandle) != HAL_SPI_STATE_READY){
+						//TODO find better way or checking, also timeout code?
+					}
+					if(cInfo->width > w){
+						ILI9341_Fill_Rect(localStartX, localStartY + h, localStartX + cInfo->width -1, localStartY + cInfo->height -1, COLOR_BLACK);
+					} else {
+						ILI9341_Fill_Rect(localStartX, localStartY + h, localStartX + w -1, localStartY + cInfo->height -1, COLOR_BLACK);
+					}
+				}
+			}
+
+			localStartX += ad;
 		}
 
-	//compare max dimensions, blanking extra space from prev. string
+	strncpy(this->currentString, str, 32);
+
 }
 
 
