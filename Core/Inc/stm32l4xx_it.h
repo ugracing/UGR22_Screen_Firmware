@@ -57,6 +57,7 @@ void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 void DMA1_Channel6_IRQHandler(void);
+void CAN1_RX0_IRQHandler(void);
 void DMA2_Channel2_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 

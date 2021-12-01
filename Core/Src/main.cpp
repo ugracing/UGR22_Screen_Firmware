@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "math.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -137,6 +136,12 @@ static struct {
 
 unsigned char black[40 * 30 * 2 + 1];
 
+int16_t RPM = 0;
+int16_t KPHx10 = 0;
+CAN_RxHeaderTypeDef pRxHeader; //declare header for message reception
+CAN_RxHeaderTypeDef rxCopy;
+uint8_t rxData[8];
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -181,6 +186,19 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 	col_ready++;
 }
 
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &pRxHeader, rxData);
+	//When in filter list mode, can hearders have no info for some reason, other than what item of the list they met, so looking for ID doesnt work
+	if(pRxHeader.FilterMatchIndex == 0){
+		RPM = rxData[1] << 8 | rxData[0];
+	}
+	if(pRxHeader.FilterMatchIndex == 1){
+		KPHx10 = rxData[5] << 8 | rxData[4];
+	}
+
+}
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -199,6 +217,8 @@ static void MX_I2C1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 S25FL flash;
+
+CAN_FilterTypeDef sFilterConfig; //declare CAN filter structure
 /* USER CODE END 0 */
 
 /**
@@ -228,7 +248,6 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
@@ -236,8 +255,6 @@ int main(void)
   MX_SPI1_Init();
   MX_CAN1_Init();
   MX_I2C1_Init();
-
-
   /* USER CODE BEGIN 2 */
 
   //Init LCD
@@ -253,6 +270,27 @@ int main(void)
   char str[128];
   sprintf(str, "maxadd: %d\n\r", maxadd);
   HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
+
+
+  //CAN test code
+  //So in 32 bit mode you have to split the 32 bit filter ID into 2 16 bit segments, to be put into IdHigh and IdLow... which are both 32 bit??? REEEE
+  uint32_t canFilterID = (0x2000 << 3) | (0x1 << 2);
+  uint32_t canFilterID2 = (0x2001 << 3) | (0x1 << 2);
+	sFilterConfig.FilterFIFOAssignment=CAN_FILTER_FIFO0; //set fifo assignment
+	sFilterConfig.FilterIdHigh= (canFilterID >> 16) & 0xFFFF; //the ID that the filter looks for (switch this for the other microcontroller)
+	sFilterConfig.FilterIdLow= canFilterID & 0xFFFF;
+	sFilterConfig.FilterMaskIdHigh=(canFilterID2 >> 16) & 0xFFFF;
+	sFilterConfig.FilterMaskIdLow=canFilterID2 & 0xFFFF;
+	sFilterConfig.FilterScale=CAN_FILTERSCALE_32BIT; //set filter scale
+	sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+	sFilterConfig.FilterActivation=ENABLE;
+
+	HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig); //configure CAN filter
+
+	HAL_CAN_Start(&hcan1); //start CAN
+	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING); //enable interrupts
+
+
 
   /* USER CODE END 2 */
 
@@ -287,21 +325,33 @@ int main(void)
 
   UGR_ScreenField mphTitleField = UGR_ScreenField(10, 50, "MPH", FreeSans10pt7b, &screen);
   UGR_ScreenField gearTitleField = UGR_ScreenField(130, 20, "Gear", FreeSans10pt7b, &screen);
-  UGR_ScreenField mphField = UGR_ScreenField(10, 100, "", FreeSans20pt7b, &screen);
+  UGR_ScreenField mphField = UGR_ScreenField(10, 75, "", FreeSans10pt7b, &screen);
   UGR_ScreenField gearField = UGR_ScreenField(130, 100, "", FreeSans35pt7b, &screen);
+  UGR_ScreenField rpmTitleField = UGR_ScreenField(10, 120, "RPM", FreeSans10pt7b, &screen);
+  UGR_ScreenField rpmField = UGR_ScreenField(10, 150, "", FreeSans10pt7b, &screen);
 
   int can_mph = 0;
   int can_gear = 0;
   char mph_str[5];
   char gear_str[5];
+  char rpm_str[6];
 
   while (1)
   {
+	  can_mph = (int)((float)KPHx10 * 0.0621371);
 	  sprintf(mph_str, "%d", can_mph);
 	  sprintf(gear_str, "%d", can_gear);
+	  sprintf(rpm_str, "%d", RPM);
 
 	  mphField.update(mph_str);
-	  gearField.update(gear_str);
+//	  gearField.update(gear_str);
+	  if(RPM == 0){
+		  rpmField.update(rpm_str);
+	  } else {
+		  rpmField.update(rpm_str);
+	  }
+
+
 
 	  if(++can_mph > 99) can_mph =0;
 	  if(++can_gear > 6) can_gear =0;

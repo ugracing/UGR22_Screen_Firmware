@@ -13,7 +13,7 @@ UGR_ScreenField::UGR_ScreenField(int startx, int starty, char *str, GFXfont font
 	this->font	= font;
 	this->screen = screen;
 	this->currentString = (char*)malloc(33); //TODO allow different sizes
-
+	memset(currentString, '\0', 33);
 	this->update(str);
 }
 
@@ -25,11 +25,15 @@ void UGR_ScreenField::update(char *str) {
 	//Write new string
 	uint16_t localStartX = this->startx;
 	uint16_t localStartY = this->starty;
-	for (int i = 0; i < strlen(str); i++) {
+	int i;
+	int offset;
+	GFXglyph * cInfo;
+
+	for (i = 0; i < strlen(str); i++) {
 
 			//get font bitmap pointer
-			int offset = str[i] - font.first;
-			GFXglyph * cInfo = &(font.glyph[offset]);
+			offset = str[i] - font.first;
+			cInfo = &(font.glyph[offset]);
 			uint8_t *fontChar = &(font.bitmap[cInfo->bitmapOffset]);
 			uint16_t fontColour = COLOR_ORANGE;
 
@@ -150,6 +154,17 @@ void UGR_ScreenField::update(char *str) {
 
 			localStartX += ad;
 		}
+
+	//check for extra characters in the prior string
+	int lastLen = strlen(this->currentString);
+	while(i < lastLen){
+		offset = this->currentString[i] - font.first;
+		cInfo = &(font.glyph[offset]);
+		while(HAL_SPI_GetState(this->screen->spiHandle) != HAL_SPI_STATE_READY);
+		ILI9341_Fill_Rect(localStartX, localStartY, localStartX + cInfo->width -1, localStartY + cInfo->height -1, COLOR_BLACK);
+		localStartX += cInfo->xAdvance;
+		i++;
+	}
 
 	strncpy(this->currentString, str, 32);
 
