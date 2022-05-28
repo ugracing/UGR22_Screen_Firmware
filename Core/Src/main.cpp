@@ -190,10 +190,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 	HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &pRxHeader, rxData);
 	//When in filter list mode, can hearders have no info for some reason, other than what item of the list they met, so looking for ID doesnt work
-	if(pRxHeader.FilterMatchIndex == 0){
+	if(pRxHeader.ExtId == 0x2000){
 		RPM = rxData[1] << 8 | rxData[0];
 	}
-	if(pRxHeader.FilterMatchIndex == 1){
+	if(pRxHeader.ExtId == 0x2001){
 		KPHx10 = rxData[5] << 8 | rxData[4];
 	}
 
@@ -274,15 +274,21 @@ int main(void)
 
   //CAN test code
   //So in 32 bit mode you have to split the 32 bit filter ID into 2 16 bit segments, to be put into IdHigh and IdLow... which are both 32 bit??? REEEE
-  uint32_t canFilterID = (0x2000 << 3) | (0x1 << 2);
-  uint32_t canFilterID2 = (0x2001 << 3) | (0x1 << 2);
+  	uint32_t canFiltMask 	= 0x1FFFFFF0;
+  	uint32_t canFiltMask_STD = canFiltMask & 0x7FF; //Separate mask into its standard and extended parts
+  	uint32_t canFiltMask_IDE = canFiltMask >> 11;
+  	uint32_t canFiltID 		= 0x2000;
+  	uint32_t canFiltID_STD = canFiltID & 0x7FF; //Separate ID into its standard and extended parts
+	uint32_t canFiltID_IDE = canFiltID >> 11;
+
 	sFilterConfig.FilterFIFOAssignment=CAN_FILTER_FIFO0; //set fifo assignment
-	sFilterConfig.FilterIdHigh= (canFilterID >> 16) & 0xFFFF; //the ID that the filter looks for (switch this for the other microcontroller)
-	sFilterConfig.FilterIdLow= canFilterID & 0xFFFF;
-	sFilterConfig.FilterMaskIdHigh=(canFilterID2 >> 16) & 0xFFFF;
-	sFilterConfig.FilterMaskIdLow=canFilterID2 & 0xFFFF;
-	sFilterConfig.FilterScale=CAN_FILTERSCALE_32BIT; //set filter scale
-	sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+	sFilterConfig.FilterBank = 0;
+	sFilterConfig.FilterIdHigh = (canFiltID_STD << 5) & (canFiltID_IDE >> 13);
+    sFilterConfig.FilterIdLow =  (canFiltID_IDE << 3) & 0x4;
+	sFilterConfig.FilterMaskIdHigh = (canFiltMask_STD << 5) & (canFiltMask_IDE >> 13);
+	sFilterConfig.FilterMaskIdLow =  (canFiltMask_IDE << 3) & 0x4;
+	sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT; //set filter scale
+	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
 	sFilterConfig.FilterActivation=ENABLE;
 
 	HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig); //configure CAN filter
