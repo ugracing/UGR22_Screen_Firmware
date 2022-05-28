@@ -136,8 +136,49 @@ static struct {
 
 unsigned char black[40 * 30 * 2 + 1];
 
-int16_t RPM = 0;
-int16_t KPHx10 = 0;
+struct DTA_CAN_Data {
+	int16_t RPM = 0;
+	int16_t TPS = 0;
+	int16_t wTemp = 0;
+	int16_t aTemp = 0;
+	int16_t mapKpa = 0;
+	int16_t lambdax1000 = 0;
+	int16_t KPHx10 = 0;
+	int16_t oKpa = 0;
+	int16_t fuelKpa = 0;
+	int16_t oTemp = 0;
+	int16_t voltsx10 = 0;
+	int16_t fuelConL_100kmx10 = 0;
+	int16_t gear = 0;
+	int16_t advanceDegx10 = 0;
+	int16_t injectionMsx100 = 0;
+	int16_t fuelConL_Hrx10 = 0;
+	int16_t ana1mV = 0;
+	int16_t ana2mV = 0;
+	int16_t ana3mV = 0;
+	int16_t camAdvx10 = 0;
+	int16_t camTargx10 = 0;
+	int16_t camPWMx10 = 0;
+	int16_t crankErr = 0;
+	int16_t camErr = 0;
+	int16_t cam2advx10 = 0;
+	int16_t cam2Targx10 = 0;
+	int16_t cam2PWMx10 = 0;
+	int16_t extern5V = 0;
+	int16_t injDutyCyc = 0;
+	int16_t lambdaPIDTarg = 0;
+	int16_t lambdaPIDAdj = 0;
+	int16_t ecuSwitches = 0;
+	int16_t rdSpeed = 0;
+	int16_t rudSpeed = 0;
+	int16_t ldSpeed = 0;
+	int16_t ludSpeed = 0;
+	int16_t rightLambda = 0;
+};
+
+struct DTA_CAN_Data ecuData;
+
+
 CAN_RxHeaderTypeDef pRxHeader; //declare header for message reception
 CAN_RxHeaderTypeDef rxCopy;
 uint8_t rxData[8];
@@ -191,12 +232,62 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &pRxHeader, rxData);
 	//When in filter list mode, can hearders have no info for some reason, other than what item of the list they met, so looking for ID doesnt work
 	if(pRxHeader.ExtId == 0x2000){
-		RPM = rxData[1] << 8 | rxData[0];
+		ecuData.RPM = rxData[1] << 8 | rxData[0];
+		ecuData.TPS = rxData[3] << 8 | rxData[2];
+		ecuData.wTemp = rxData[5] << 8 | rxData[4];
+		ecuData.aTemp = rxData[7] << 8 | rxData[6];
 	}
 	if(pRxHeader.ExtId == 0x2001){
-		KPHx10 = rxData[5] << 8 | rxData[4];
+		ecuData.mapKpa = rxData[1] << 8 | rxData[0];
+		ecuData.lambdax1000 = rxData[3] << 8 | rxData[2];
+		ecuData.KPHx10 = rxData[5] << 8 | rxData[4];
+		ecuData.oKpa = rxData[7] << 8 | rxData[6];
 	}
-
+	if(pRxHeader.ExtId == 0x2002){
+		ecuData.fuelKpa = rxData[1] << 8 | rxData[0];
+		ecuData.oTemp = rxData[3] << 8 | rxData[2];
+		ecuData.voltsx10 = rxData[5] << 8 | rxData[4];
+		ecuData.fuelConL_100kmx10 = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2003){
+		ecuData.gear = rxData[1] << 8 | rxData[0];
+		ecuData.advanceDegx10 = rxData[3] << 8 | rxData[2];
+		ecuData.injectionMsx100 = rxData[5] << 8 | rxData[4];
+		ecuData.fuelConL_Hrx10 = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2004){
+		ecuData.ana1mV = rxData[1] << 8 | rxData[0];
+		ecuData.ana2mV = rxData[3] << 8 | rxData[2];
+		ecuData.ana3mV = rxData[5] << 8 | rxData[4];
+		ecuData.camAdvx10 = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2005){
+		ecuData.camTargx10 = rxData[1] << 8 | rxData[0];
+		ecuData.camPWMx10 = rxData[3] << 8 | rxData[2];
+		ecuData.crankErr = rxData[5] << 8 | rxData[4];
+		ecuData.camErr = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2006){
+		ecuData.cam2advx10 = rxData[1] << 8 | rxData[0];
+		ecuData.cam2Targx10 = rxData[3] << 8 | rxData[2];
+		ecuData.cam2PWMx10 = rxData[5] << 8 | rxData[4];
+		ecuData.extern5V = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2007){
+		ecuData.injDutyCyc = rxData[1] << 8 | rxData[0];
+		ecuData.lambdaPIDTarg = rxData[3] << 8 | rxData[2];
+		ecuData.lambdaPIDAdj = rxData[5] << 8 | rxData[4];
+		ecuData.ecuSwitches = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2008){
+		ecuData.rdSpeed = rxData[1] << 8 | rxData[0];
+		ecuData.rudSpeed = rxData[3] << 8 | rxData[2];
+		ecuData.ldSpeed = rxData[5] << 8 | rxData[4];
+		ecuData.ludSpeed = rxData[7] << 8 | rxData[6];
+	}
+	if(pRxHeader.ExtId == 0x2001){
+		ecuData.rightLambda = rxData[1] << 8 | rxData[0];
+	}
 }
 
 /* USER CODE END PV */
@@ -344,14 +435,14 @@ int main(void)
 
   while (1)
   {
-	  can_mph = (int)((float)KPHx10 * 0.0621371);
+	  can_mph = (int)((float)ecuData.KPHx10 * 0.0621371);
 	  sprintf(mph_str, "%d", can_mph);
 	  sprintf(gear_str, "%d", can_gear);
-	  sprintf(rpm_str, "%d", RPM);
+	  sprintf(rpm_str, "%d", ecuData.RPM);
 
 	  mphField.update(mph_str);
 //	  gearField.update(gear_str);
-	  if(RPM == 0){
+	  if(ecuData.RPM == 0){
 		  rpmField.update(rpm_str);
 	  } else {
 		  rpmField.update(rpm_str);
