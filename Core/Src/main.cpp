@@ -162,7 +162,7 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi3;
-DMA_HandleTypeDef hdma_spi3_tx;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -258,10 +258,10 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //Init LCD
-  UGR_Screen screen = UGR_Screen(&hspi3, LCD_CS_GPIO_Port, LCD_CS_Pin, LCD_DC_GPIO_Port, LCD_DC_Pin, LCD_RST_GPIO_Port, LCD_RST_Pin);
+  UGR_Screen screen = UGR_Screen(&hspi1, LCD_CS_GPIO_Port, LCD_CS_Pin, LCD_DC_GPIO_Port, LCD_DC_Pin, LCD_RST_GPIO_Port, LCD_RST_Pin);
 
   //Init Flash
-  flash = S25FL(&hspi1, FLASH_CS_GPIO_Port, FLASH_CS_Pin);
+  flash = S25FL(&hspi3, FLASH_CS_GPIO_Port, FLASH_CS_Pin);
   flash.begin();
 
 
@@ -312,16 +312,16 @@ int main(void)
   uint32_t ypos = 0;
   ILI9341_SetCursorPosition(xpos, ypos, xpos + meme.width - 1,  ypos + meme.height - 1);
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  HAL_SPI_Transmit_DMA(&hspi3, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
 
-  while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY);
+  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 
   ILI9341_SetCursorPosition(ILI9341_HEIGHT - meme.width, ILI9341_WIDTH - meme.height, ILI9341_HEIGHT - 1,  ILI9341_WIDTH - 1);
   HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  HAL_SPI_Transmit_DMA(&hspi3, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
 
   HAL_Delay(1);
-  while(HAL_SPI_GetState(&hspi3) != HAL_SPI_STATE_READY);
+  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 
   UGR_ScreenField mphTitleField = UGR_ScreenField(10, 50, "MPH", FreeSans10pt7b, &screen);
   UGR_ScreenField gearTitleField = UGR_ScreenField(130, 20, "Gear", FreeSans10pt7b, &screen);
@@ -372,6 +372,7 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
 
   /** Configure LSE Drive Capability
   */
@@ -425,6 +426,19 @@ void SystemClock_Config(void)
   /** Enable MSI Auto calibration
   */
   HAL_RCCEx_EnableMSIPLLMode();
+  /** Enable the SYSCFG APB clock
+  */
+  __HAL_RCC_CRS_CLK_ENABLE();
+  /** Configures CRS
+  */
+  RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_LSE;
+  RCC_CRSInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
+  RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000,32768);
+  RCC_CRSInitStruct.ErrorLimitValue = 34;
+  RCC_CRSInitStruct.HSI48CalibrationValue = 32;
+
+  HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 }
 
 /**
@@ -533,7 +547,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -633,15 +647,14 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA1_CLK_ENABLE();
-  __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
   /* DMA1_Channel6_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
-  /* DMA2_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Channel2_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Channel2_IRQn);
 
 }
 
@@ -660,13 +673,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, FLASH_CS_Pin|LCD_DC_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LCD_DC_Pin|FLASH_CS_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : FLASH_CS_Pin LCD_DC_Pin LCD_CS_Pin */
-  GPIO_InitStruct.Pin = FLASH_CS_Pin|LCD_DC_Pin|LCD_CS_Pin;
+  /*Configure GPIO pins : LCD_DC_Pin FLASH_CS_Pin LCD_CS_Pin */
+  GPIO_InitStruct.Pin = LCD_DC_Pin|FLASH_CS_Pin|LCD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
