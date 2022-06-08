@@ -310,6 +310,15 @@ static void MX_I2C1_Init(void);
 S25FL flash;
 
 CAN_FilterTypeDef sFilterConfig; //declare CAN filter structure
+
+void drawGrid(){
+	for(int w = 20; w < 240; w+= 20){
+		ILI9341_drawLine(0, w, 319, w, COLOR_ORANGE);
+	}
+	for(int h = 20; h < 320; h+= 20){
+		ILI9341_drawLine(h, 0, h, 239, COLOR_ORANGE);
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -407,51 +416,77 @@ int main(void)
   ILI9341_Fill(COLOR_BLACK);
   uint32_t xpos = 0;
   uint32_t ypos = 0;
-  ILI9341_SetCursorPosition(xpos, ypos, xpos + meme.width - 1,  ypos + meme.height - 1);
-  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+//  ILI9341_SetCursorPosition(xpos, ypos, xpos + meme.width - 1,  ypos + meme.height - 1);
+//  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
+//  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+//
+//  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+//
+//  ILI9341_SetCursorPosition(ILI9341_HEIGHT - meme.width, ILI9341_WIDTH - meme.height, ILI9341_HEIGHT - 1,  ILI9341_WIDTH - 1);
+//  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
+//  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
+//
+//  HAL_Delay(1);
+//  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 
-  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+  UGR_ScreenField rpmTitleField = 			UGR_ScreenField(2, 0, "RPM", 				FreeSans10pt7b, &screen);
+  UGR_ScreenField rpmField = 				UGR_ScreenField(10, 20, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField mphTitleField = 			UGR_ScreenField(2, 60, "MPH", 				FreeSans10pt7b, &screen);
+  UGR_ScreenField mphField = 				UGR_ScreenField(10, 80, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField oilTempTitleField = 		UGR_ScreenField(2, 120, "Oil C", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField oilTempField = 			UGR_ScreenField(10, 140, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField oilKpaTitleField = 		UGR_ScreenField(2, 180, "Oil Kpa", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField oilKpaField = 			UGR_ScreenField(10, 200, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField waterTempTitleField = 	UGR_ScreenField(260, 0, "Cool C", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField waterTempField = 			UGR_ScreenField(240, 20, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField voltsTitleField = 		UGR_ScreenField(260, 60, "Volts", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField voltsField = 				UGR_ScreenField(240, 80, "", 				FreeSans20pt7b, &screen);
+  UGR_ScreenField throttleTitleField = 		UGR_ScreenField(260, 120, "TPS", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField throttleField = 			UGR_ScreenField(240, 140, "", 				FreeSans20pt7b, &screen);
 
-  ILI9341_SetCursorPosition(ILI9341_HEIGHT - meme.width, ILI9341_WIDTH - meme.height, ILI9341_HEIGHT - 1,  ILI9341_WIDTH - 1);
-  HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-  HAL_SPI_Transmit_DMA(&hspi1, meme.pixel_data, meme.height * meme.width * meme.bytes_per_pixel);
 
-  HAL_Delay(1);
-  while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+//  UGR_ScreenField brakeFrontKpaTitleField = UGR_ScreenField(200, 25, "BRAKE F Kpa", 		FreeSans10pt7b, &screen);
+//  UGR_ScreenField brakeFrontKpaField = 		UGR_ScreenField(200, 40, "", 				FreeSans20pt7b, &screen);
+//  UGR_ScreenField brakeRearKpaTitleField = 	UGR_ScreenField(200, 55, "BRAKE R Kpa", 	FreeSans10pt7b, &screen);
+//  UGR_ScreenField brakeRearKpaField = 		UGR_ScreenField(200, 70, "", 				FreeSans20pt7b, &screen);
 
-  UGR_ScreenField mphTitleField = UGR_ScreenField(10, 50, "MPH", FreeSans10pt7b, &screen);
-  UGR_ScreenField gearTitleField = UGR_ScreenField(130, 20, "Gear", FreeSans10pt7b, &screen);
-  UGR_ScreenField mphField = UGR_ScreenField(10, 75, "", FreeSans10pt7b, &screen);
-  UGR_ScreenField gearField = UGR_ScreenField(130, 100, "", FreeSans35pt7b, &screen);
-  UGR_ScreenField rpmTitleField = UGR_ScreenField(10, 120, "RPM", FreeSans10pt7b, &screen);
-  UGR_ScreenField rpmField = UGR_ScreenField(10, 150, "", FreeSans10pt7b, &screen);
+  UGR_ScreenField gearTitleField = 			UGR_ScreenField(130, 20, "Gear", 			FreeSans10pt7b, &screen);
+  UGR_ScreenField gearField = 				UGR_ScreenField(130, 45, "", 				FreeSans35pt7b, &screen);
 
   int can_mph = 0;
   int can_gear = 0;
-  char mph_str[5];
-  char gear_str[5];
-  char rpm_str[6];
+  char tmp_str[9];
+
+//  drawGrid();
+
+  //for fit testing of fields while CAN is disconnected
+  ecuData.RPM = 12000;
+  ecuData.KPHx10 = 1200;
+  ecuData.oTemp = 112;
+  ecuData.oKpa = 650;
+  ecuData.voltsx10 = 135;
+  ecuData.wTemp = 101;
+  ecuData.TPS = 100;
+  ecuData.gear = 5;
 
   while (1)
   {
-	  can_mph = (int)((float)ecuData.KPHx10 * 0.0621371);
-	  sprintf(mph_str, "%d", can_mph);
-	  sprintf(gear_str, "%d", can_gear);
-	  sprintf(rpm_str, "%d", ecuData.RPM);
-
-	  mphField.update(mph_str);
-//	  gearField.update(gear_str);
-	  if(ecuData.RPM == 0){
-		  rpmField.update(rpm_str);
-	  } else {
-		  rpmField.update(rpm_str);
-	  }
-
-
-
-	  if(++can_mph > 99) can_mph =0;
-	  if(++can_gear > 6) can_gear =0;
+	  sprintf(tmp_str, "%d", ecuData.RPM);
+	  rpmField.update(tmp_str);
+	  sprintf(tmp_str, "%d", (int)((float)ecuData.KPHx10 * 0.0621371));
+	  mphField.update(tmp_str);
+	  sprintf(tmp_str, "%d", ecuData.gear);
+	  gearField.update(tmp_str);
+	  sprintf(tmp_str, "%d", ecuData.oTemp);
+	  oilTempField.update(tmp_str);
+	  sprintf(tmp_str, "%d", ecuData.oKpa);
+	  oilKpaField.update(tmp_str);
+	  sprintf(tmp_str, "%d.%d", ecuData.voltsx10 / 10, ecuData.voltsx10 % 10);
+	  voltsField.update(tmp_str);
+	  sprintf(tmp_str, "%d", ecuData.wTemp);
+	  waterTempField.update(tmp_str);
+	  sprintf(tmp_str, "%d", ecuData.TPS);
+	  throttleField.update(tmp_str);
 
     /* USER CODE END WHILE */
 
